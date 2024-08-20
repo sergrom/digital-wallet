@@ -34,7 +34,8 @@ func transferMoneyHandler(c *gin.Context) {
 	}
 	defer tx.Rollback() // Defer a rollback in case anything fails.
 
-	rows, err := tx.QueryContext(c.Request.Context(), `select * from "user" where user_id = $1 or user_id = $2 limit 2`, req.FromUserID, req.ToUserID)
+	rows, err := tx.QueryContext(c.Request.Context(), `select * from "user" where user_id = $1 or user_id = $2 for update`, req.FromUserID, req.ToUserID)
+
 	if err != nil {
 		log.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong, please try later"})
@@ -65,13 +66,14 @@ func transferMoneyHandler(c *gin.Context) {
 		return
 	}
 
-	_, err = dbConn.ExecContext(c.Request.Context(), `update "user" set balance=$1 where user_id=$2`, users[req.FromUserID].Balance-req.AmountToTransfer, req.FromUserID)
+	_, err = tx.ExecContext(c.Request.Context(), `update "user" set balance=$1 where user_id=$2`, users[req.FromUserID].Balance-req.AmountToTransfer, req.FromUserID)
 	if err != nil {
 		log.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong, please try later"})
 		return
 	}
-	_, err = dbConn.ExecContext(c.Request.Context(), `update "user" set balance=$1 where user_id=$2`, users[req.ToUserID].Balance+req.AmountToTransfer, req.ToUserID)
+
+	_, err = tx.ExecContext(c.Request.Context(), `update "user" set balance=$1 where user_id=$2`, users[req.ToUserID].Balance+req.AmountToTransfer, req.ToUserID)
 	if err != nil {
 		log.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong, please try later"})

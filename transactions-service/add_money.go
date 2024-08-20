@@ -27,7 +27,7 @@ func addMoneyHandler(c *gin.Context) {
 	}
 	defer tx.Rollback() // Defer a rollback in case anything fails.
 
-	row := tx.QueryRowContext(c.Request.Context(), `select * from "user" where user_id=$1 limit 1`, req.UserID)
+	row := tx.QueryRowContext(c.Request.Context(), `select * from "user" where user_id=$1 limit 1 for update`, req.UserID)
 	if row.Err() != nil {
 		log.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong, please try later"})
